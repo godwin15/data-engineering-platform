@@ -240,6 +240,117 @@ def generate_trades(accounts_df, securities_df):
     return pd.DataFrame(records)
 
 
+def generate_advisors(clients_df):
+    records = []
+
+    for org_id in ORGANIZATIONS:
+        # Three advisors per organization
+        advisors = []
+
+        for advisor_number in range(1, 4):
+            advisors.append({
+                "organisation_id": org_id,
+                "advisor_id": f"ADV{advisor_number:03d}",
+                "advisor_name": fake.name(),
+                "specialization": random.choice([
+                    "Retirement Planning",
+                    "Investment Management",
+                    "Wealth Advisory"
+                ]),
+                "status": "Active"
+            })
+
+        for processing_date in PROCESSING_DATES:
+            for advisor in advisors:
+                records.append({
+                    **advisor,
+                    "processing_date": str(processing_date)
+                })
+
+    return pd.DataFrame(records)
+
+
+
+def generate_fees(accounts_df):
+    records = []
+
+    for _, account in accounts_df.iterrows():
+        fee_amount = round(
+            account["opening_balance"] * 0.0001, 2
+        )
+
+        records.append({
+            "organisation_id": account["organisation_id"],
+            "processing_date": account["processing_date"],
+            "fee_id": (
+                f"F-{account['account_id']}-"
+                f"{account['processing_date']}"
+            ),
+            "account_id": account["account_id"],
+            "fee_type": "Management Fee",
+            "fee_amount": fee_amount,
+            "currency": "USD"
+        })
+
+    return pd.DataFrame(records)
+
+
+def generate_statements(accounts_df, transactions_df, fees_df):
+    records = []
+
+    for _, account in accounts_df.iterrows():
+        org_id = account["organisation_id"]
+        processing_date = account["processing_date"]
+        account_id = account["account_id"]
+
+        txns = transactions_df[
+            (transactions_df["organisation_id"] == org_id) &
+            (transactions_df["processing_date"] == processing_date) &
+            (transactions_df["account_id"] == account_id)
+        ]
+
+        fees = fees_df[
+            (fees_df["organisation_id"] == org_id) &
+            (fees_df["processing_date"] == processing_date) &
+            (fees_df["account_id"] == account_id)
+        ]
+
+        deposits = txns.loc[
+            txns["transaction_type"].isin(["Deposit", "Dividend"]),
+            "amount"
+        ].sum()
+
+        withdrawals = txns.loc[
+            txns["transaction_type"] == "Withdrawal",
+            "amount"
+        ].sum()
+
+        total_fees = fees["fee_amount"].sum()
+
+        ending_balance = round(
+            account["opening_balance"]
+            + deposits
+            - withdrawals
+            - total_fees,
+            2
+        )
+
+        records.append({
+            "organisation_id": org_id,
+            "processing_date": processing_date,
+            "statement_id": f"S-{account_id}-{processing_date}",
+            "account_id": account_id,
+            "opening_balance": account["opening_balance"],
+            "total_deposits": round(deposits, 2),
+            "total_withdrawals": round(withdrawals, 2),
+            "total_fees": round(total_fees, 2),
+            "ending_balance": ending_balance,
+            "currency": "USD"
+        })
+
+    return pd.DataFrame(records)
+
+
 def save_dataset(df, table_name):
     folder = OUTPUT_DIR / table_name
     folder.mkdir(parents=True, exist_ok=True)
@@ -264,6 +375,11 @@ if __name__ == "__main__":
     trades_df = generate_trades(
         accounts_df, securities_df
     )
+    advisors_df = generate_advisors(clients_df)
+    fees_df = generate_fees(accounts_df)
+    statements_df = generate_statements(
+        accounts_df, transactions_df, fees_df
+    )
 
     datasets = {
         "clients": clients_df,
@@ -272,7 +388,10 @@ if __name__ == "__main__":
         "securities": securities_df,
         "holdings": holdings_df,
         "transactions": transactions_df,
-        "trades": trades_df
+        "trades": trades_df,
+        "advisors": advisors_df,
+        "fees": fees_df,
+        "statements": statements_df
     }
 
     for name, df in datasets.items():
@@ -287,7 +406,10 @@ if __name__ == "__main__":
         "securities": "security_id",
         "holdings": "holding_id",
         "transactions": "transaction_id",
-        "trades": "trade_id"
+        "trades": "trade_id",
+        "advisors": "advisor_id",
+        "fees": "fee_id",
+        "statements": "statement_id"
     }
 
     # Check duplicate business keys within each snapshot
@@ -305,7 +427,9 @@ if __name__ == "__main__":
         (holdings_df, securities_df, ["security_id"]),
         (transactions_df, accounts_df, ["account_id"]),
         (trades_df, accounts_df, ["account_id"]),
-        (trades_df, securities_df, ["security_id"])
+        (trades_df, securities_df, ["security_id"]),
+        (fees_df, accounts_df, ["account_id"]),
+        (statements_df, accounts_df, ["account_id"])
     ]
 
     for child, parent, foreign_keys in relationships:
@@ -325,6 +449,18 @@ if __name__ == "__main__":
         assert (check["_merge"] == "both").all(), (
             f"Invalid relationship for {foreign_keys}"
         )
+
+    # Validate statement balance calculations
+    calculated_balance = (
+        statements_df["opening_balance"]
+        + statements_df["total_deposits"]
+        - statements_df["total_withdrawals"]
+        - statements_df["total_fees"]
+    ).round(2)
+
+    assert (
+        calculated_balance == statements_df["ending_balance"]
+    ).all(), "Statement balance mismatch"
 
     print("All validation checks passed!")
 
