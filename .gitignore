@@ -1,0 +1,23 @@
+
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local generated datasets
+data/
+
+# Airflow runtime files
+airflow/logs/
+airflow/airflow.db
+airflow/airflow.db-*
+airflow/*.pid
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+docker-compose.yml.backup
