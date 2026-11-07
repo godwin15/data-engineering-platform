@@ -121,3 +121,51 @@ Check pipeline status:
 ## Project Status
 
 Core Silver-to-Gold orchestration and automated data-quality validation completed successfully.
+
+## DATA-2: Incremental Data Ingestion & CDC
+
+DATA-2 extends the Medallion Pipeline Engine with simulated
+Change Data Capture (CDC) for wealth management client records.
+
+### Features
+
+- Maintains a current-state client table using ClickHouse ReplacingMergeTree.
+- Processes simulated INSERT, UPDATE, and DELETE events.
+- Preserves historical client snapshots in the original Silver table.
+- Uses event IDs and version numbers to support replay-safe processing.
+- Supports partial updates and soft deletes.
+- Orchestrates CDC processing and validation through Apache Airflow.
+- Performs automated data-quality checks.
+
+### CDC Pipeline
+
+1. `client_cdc_events` stores incoming simulated change events.
+2. `process_client_cdc.py` processes unhandled events.
+3. `silver_clients_current` maintains the latest client state.
+4. `client_cdc_processed_events` tracks processed event IDs.
+5. `validate_client_cdc.py` validates the resulting data.
+
+### Airflow DAG
+
+DAG: `wealth_management_client_cdc`
+
+Tasks:
+
+1. `process_client_changes`
+2. `validate_client_changes`
+
+### Verified Results
+
+- 3 simulated CDC events processed successfully.
+- INSERT, UPDATE, and DELETE operations verified.
+- 31 client keys maintained, including 1 soft-deleted client.
+- 0 pending events and 0 duplicate current-client keys.
+- Repeated execution applied 0 additional events.
+- Both Airflow tasks completed successfully.
+
+### Limitations
+
+This is a simulated batch CDC prototype, not a live database
+change-streaming implementation. Production improvements would
+include stronger event ordering, transactional checkpointing,
+concurrency controls, and comprehensive reconciliation.
