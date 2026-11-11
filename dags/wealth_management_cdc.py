@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from pipeline_monitoring import on_pipeline_success, on_pipeline_failure
 
 default_args = {
     "owner": "data_engineering",
@@ -16,6 +17,8 @@ with DAG(
     start_date=datetime(2026, 10, 1),
     schedule_interval=None,
     catchup=False,
+    on_success_callback=on_pipeline_success,
+    on_failure_callback=on_pipeline_failure,
     max_active_runs=1,
     tags=["wealth-management", "cdc", "incremental"],
 ) as dag:

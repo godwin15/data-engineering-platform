@@ -1,5 +1,8 @@
 import os
 import sys
+from uuid import uuid4
+
+from monitoring import log_quality_metric
 import clickhouse_connect
 
 DATABASE = "wealth_management"
@@ -31,6 +34,20 @@ def main():
     )
 
     failures = []
+    run_id = os.getenv("AIRFLOW_CTX_DAG_RUN_ID") or str(uuid4())
+
+    def record(table, check, value, expected, passed, details=""):
+        log_quality_metric(
+            pipeline_name="DATA-1",
+            table_name=table,
+            check_name=check,
+            metric_value=value,
+            expected_value=expected,
+            status="PASS" if passed else "FAIL",
+            details=details,
+            run_id=run_id,
+        )
+
 
     for table, (key, expected) in TABLES.items():
         try:
@@ -42,6 +59,11 @@ def main():
                     ))
                 FROM {table}
             """).result_rows[0]
+
+            duplicates = count - unique_count
+
+            record(table, "row_count", count, expected, count == expected)
+            record(table, "duplicate_keys", duplicates, 0, duplicates == 0)
 
             if count != expected or unique_count != count:
                 failures.append(
@@ -64,6 +86,21 @@ def main():
                 sum(reconciliation_errors)
             FROM gold_statement_summary
         """).result_rows[0]
+
+        record(
+            "gold_statement_summary",
+            "missing_financial_values",
+            missing or 0,
+            0,
+            missing == 0,
+        )
+        record(
+            "gold_statement_summary",
+            "reconciliation_errors",
+            mismatches or 0,
+            0,
+            mismatches == 0,
+        )
 
         if missing != 0 or mismatches != 0:
             failures.append(
