@@ -169,3 +169,42 @@ This is a simulated batch CDC prototype, not a live database
 change-streaming implementation. Production improvements would
 include stronger event ordering, transactional checkpointing,
 concurrency controls, and comprehensive reconciliation.
+
+## DATA-3: Data Quality, Monitoring & Observability
+
+Implemented historical data-quality and pipeline execution monitoring using Apache Airflow, Python, and ClickHouse.
+
+### Monitoring Features
+
+- Automated row-count and duplicate-key checks across 13 Silver and Gold tables.
+- Financial reconciliation validation.
+- CDC pending-event and duplicate-key monitoring.
+- Shared run IDs connecting quality metrics to pipeline executions.
+- Airflow success and failure callbacks.
+- Pipeline execution duration tracking.
+- Persistent monitoring history in ClickHouse.
+
+### Monitoring Tables
+
+- monitoring.data_quality_metrics
+- monitoring.pipeline_runs
+
+### Verified Results
+
+| Pipeline | Status | Duration | Quality Checks |
+|----------|--------|----------|----------------|
+| DATA-1 Silver/Gold | Success | 23.87 seconds | 28 passed |
+| DATA-2 Client CDC | Success | 5.12 seconds | 2 passed |
+
+### Monitoring Setup
+
+Run the monitoring SQL schema using:
+
+    docker exec -i de_clickhouse clickhouse-client --multiquery < sql/monitoring/create_monitoring_tables.sql
+
+### Limitations
+
+- CDC uses simulated batch events rather than live streaming.
+- Monitoring records DAG execution results, not individual task durations.
+- A visual monitoring dashboard is not yet implemented.
+- Failure callbacks have not yet been tested against an intentionally failed DAG run.

@@ -1,3 +1,5 @@
+from uuid import uuid4
+from monitoring import log_quality_metric
 import os
 import clickhouse_connect
 
@@ -32,7 +34,31 @@ not_deleted = client.query(
     f"SELECT count() FROM {db}.silver_clients_current FINAL WHERE is_deleted = 0"
 ).result_rows[0][0]
 
+
+QUALITY_RUN_ID = os.getenv("AIRFLOW_CTX_DAG_RUN_ID") or str(uuid4())
+
+log_quality_metric(
+    pipeline_name="DATA-2",
+    table_name="client_cdc_events",
+    check_name="pending_events",
+    metric_value=pending,
+    expected_value=0,
+    status="PASS" if pending == 0 else "FAIL",
+    run_id=QUALITY_RUN_ID,
+)
+
 print(f"Pending CDC events: {pending}")
+
+log_quality_metric(
+    pipeline_name="DATA-2",
+    table_name="silver_clients_current",
+    check_name="duplicate_keys",
+    metric_value=duplicates,
+    expected_value=0,
+    status="PASS" if duplicates == 0 else "FAIL",
+    run_id=QUALITY_RUN_ID,
+)
+
 print(f"Duplicate current client keys: {duplicates}")
 print(f"Total current client keys: {total}")
 print(f"Non-deleted clients: {not_deleted}")
