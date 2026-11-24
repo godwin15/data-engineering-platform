@@ -1,0 +1,30 @@
+table: silver_transactions
+database: wealth_management
+tenant_column: organisation_id
+primary_key: &id001
+- organisation_id
+- transaction_id
+- processing_date
+checks:
+- name: organisation_id_required
+  type: null_check
+  column: organisation_id
+  severity: ERROR
+- name: transaction_id_required
+  type: null_check
+  column: transaction_id
+  severity: ERROR
+- name: account_id_required
+  type: null_check
+  column: account_id
+  severity: ERROR
+- name: transactions_key_unique
+  type: unique_key
+  columns: *id001
+  severity: ERROR
+- name: account_id_tenant_integrity
+  type: cross_tenant_check
+  entity_column: account_id
+  tenant_column: organisation_id
+  reference_table: silver_accounts
+  severity: ERROR

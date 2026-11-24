@@ -1,0 +1,20 @@
+table: silver_securities
+database: wealth_management
+tenant_column: organisation_id
+primary_key: &id001
+- organisation_id
+- security_id
+- processing_date
+checks:
+- name: organisation_id_required
+  type: null_check
+  column: organisation_id
+  severity: ERROR
+- name: security_id_required
+  type: null_check
+  column: security_id
+  severity: ERROR
+- name: securities_key_unique
+  type: unique_key
+  columns: *id001
+  severity: ERROR

@@ -1,0 +1,45 @@
+table: silver_trades
+database: wealth_management
+tenant_column: organisation_id
+primary_key: &id001
+- organisation_id
+- trade_id
+- processing_date
+checks:
+- name: organisation_id_required
+  type: null_check
+  column: organisation_id
+  severity: ERROR
+- name: trade_id_required
+  type: null_check
+  column: trade_id
+  severity: ERROR
+- name: account_id_required
+  type: null_check
+  column: account_id
+  severity: ERROR
+- name: security_id_required
+  type: null_check
+  column: security_id
+  severity: ERROR
+- name: trades_key_unique
+  type: unique_key
+  columns: *id001
+  severity: ERROR
+- name: account_id_tenant_integrity
+  type: cross_tenant_check
+  entity_column: account_id
+  tenant_column: organisation_id
+  reference_table: silver_accounts
+  severity: ERROR
+- name: security_id_tenant_integrity
+  type: cross_tenant_check
+  entity_column: security_id
+  tenant_column: organisation_id
+  reference_table: silver_securities
+  severity: ERROR
+- name: price_nonnegative
+  type: range_check
+  column: price
+  min: 0
+  severity: WARNING
