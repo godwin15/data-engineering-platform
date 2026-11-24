@@ -21,3 +21,4 @@ airflow/*.pid
 # OS files
 .DS_Store
 docker-compose.yml.backup
+runtime/

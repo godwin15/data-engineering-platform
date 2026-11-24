@@ -1,0 +1,34 @@
+models:
+- target: wealth_management.silver_advisors
+  sources:
+  - wealth_management.bronze_advisors
+  definition: scripts/run_silver_pipeline.py
+- target: wealth_management.silver_fees
+  sources:
+  - wealth_management.bronze_fees
+  definition: scripts/run_silver_pipeline.py
+- target: wealth_management.silver_statements
+  sources:
+  - wealth_management.bronze_statements
+  definition: scripts/run_silver_pipeline.py
+- target: wealth_management.silver_trades
+  sources:
+  - wealth_management.bronze_trades
+  definition: scripts/run_silver_pipeline.py
+- target: wealth_management.gold_account_activity
+  sources:
+  - wealth_management.silver_accounts
+  - wealth_management.silver_fees
+  - wealth_management.silver_trades
+  - wealth_management.silver_transactions
+  definition: scripts/run_gold_pipeline.py
+- target: wealth_management.gold_portfolio_holdings
+  sources:
+  - wealth_management.silver_holdings
+  - wealth_management.silver_portfolios
+  - wealth_management.silver_securities
+  definition: scripts/run_gold_pipeline.py
+- target: wealth_management.gold_statement_summary
+  sources:
+  - wealth_management.silver_statements
+  definition: scripts/run_gold_pipeline.py

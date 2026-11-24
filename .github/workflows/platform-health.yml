@@ -1,0 +1,41 @@
+name: Platform Health CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  health-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-health.txt
+
+      - name: Regenerate lineage configuration
+        run: |
+          PYTHONPATH=. python scripts/generate_lineage_configs.py
+          git diff --exit-code -- configs/lineage/
+
+      - name: Run offline platform health tests
+        run: |
+          python -m unittest discover -s tests/platform_health -v
+
+      - name: Validate lineage graph
+        run: |
+          python -m platform_health.console --lineage
+
+      - name: Validate graph documentation
+        run: |
+          python -m platform_health.export_graph
+          git diff --exit-code -- docs/DATA-3-LINEAGE.md
