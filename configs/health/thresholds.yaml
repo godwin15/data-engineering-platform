@@ -1,0 +1,16 @@
+freshness:
+  warning_hours: 24
+  critical_hours: 48
+
+volume:
+  minimum_rows: 1
+  warning_change_pct: 20
+  critical_change_pct: 50
+
+storage:
+  warning_growth_pct: 50
+  critical_growth_pct: 100
+
+monitoring:
+  alert_on_unknown_freshness: true
+  alert_on_unknown_storage: true
