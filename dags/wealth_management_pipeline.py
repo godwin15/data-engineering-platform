@@ -57,4 +57,18 @@ with DAG(
         ),
     )
 
-    run_silver_sql >> run_silver_python >> run_gold >> validate_data_quality
+    silver_quality_gate = BashOperator(
+        task_id="silver_quality_gate",
+        bash_command=(
+            "PYTHONPATH=/opt/airflow "
+            "python -m data_quality.runner"
+        ),
+    )
+
+    (
+        run_silver_sql
+        >> run_silver_python
+        >> silver_quality_gate
+        >> run_gold
+        >> validate_data_quality
+    )

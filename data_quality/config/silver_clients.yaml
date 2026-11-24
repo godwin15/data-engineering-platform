@@ -1,0 +1,31 @@
+table: silver_clients
+database: wealth_management
+tenant_column: organisation_id
+primary_key:
+- organisation_id
+- client_id
+- processing_date
+checks:
+- name: organisation_id_required
+  type: null_check
+  column: organisation_id
+  severity: ERROR
+- name: client_key_unique
+  type: unique_key
+  columns:
+  - organisation_id
+  - client_id
+  - processing_date
+  severity: ERROR
+- name: client_row_count
+  type: row_count_reconciliation
+  expected_count: 210
+  severity: WARNING
+- name: client_id_required
+  type: null_check
+  column: client_id
+  severity: ERROR
+- name: client_name_required
+  type: null_check
+  column: client_name
+  severity: ERROR
