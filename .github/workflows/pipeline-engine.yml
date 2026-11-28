@@ -1,0 +1,25 @@
+name: Pipeline Engine Validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate-pipelines:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-health.txt
+
+      - name: Validate pipeline configurations
+        run: python scripts/pipeline_config.py
+
+      - name: Run pipeline and tenant guard tests
+        run: python -m unittest discover -s tests/pipelines -v

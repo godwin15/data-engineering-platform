@@ -1,0 +1,25 @@
+models:
+  clients:
+    sql_file: sql/silver/load_silver_clients.sql
+    target: silver_clients
+    key: client_id
+  accounts:
+    sql_file: sql/silver/load_silver_accounts.sql
+    target: silver_accounts
+    key: account_id
+  portfolios:
+    sql_file: sql/silver/load_silver_portfolios.sql
+    target: silver_portfolios
+    key: portfolio_id
+  securities:
+    sql_file: sql/silver/load_silver_securities.sql
+    target: silver_securities
+    key: security_id
+  holdings:
+    sql_file: sql/silver/load_silver_holdings.sql
+    target: silver_holdings
+    key: holding_id
+  transactions:
+    sql_file: sql/silver/load_silver_transactions.sql
+    target: silver_transactions
+    key: transaction_id

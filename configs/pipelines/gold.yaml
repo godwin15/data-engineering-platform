@@ -1,0 +1,84 @@
+models:
+  account_activity:
+    key: account_id
+    sql: "\n            SELECT\n                a.organisation_id AS organisation_id,\n\
+      \                a.account_id AS account_id,\n                a.client_id AS\
+      \ client_id,\n                a.currency AS account_currency,\n            \
+      \    a.processing_date AS processing_date,\n                coalesce(tx.transaction_count,\
+      \ 0) AS transaction_count,\n                coalesce(tx.transaction_amount,\
+      \ 0) AS transaction_amount,\n                coalesce(tr.trade_count, 0) AS\
+      \ trade_count,\n                coalesce(tr.total_trade_value, 0) AS total_trade_value,\n\
+      \                coalesce(f.fee_count, 0) AS fee_count,\n                coalesce(f.total_fees,\
+      \ 0) AS total_fees\n            FROM silver_accounts AS a\n            LEFT\
+      \ JOIN (\n                SELECT\n                    organisation_id,\n   \
+      \                 account_id,\n                    processing_date,\n      \
+      \              count() AS transaction_count,\n                    sum(coalesce(amount,\
+      \ 0)) AS transaction_amount\n                FROM silver_transactions\n    \
+      \            GROUP BY organisation_id, account_id, processing_date\n       \
+      \     ) AS tx\n                ON a.organisation_id = tx.organisation_id\n \
+      \               AND a.account_id = tx.account_id\n                AND a.processing_date\
+      \ = tx.processing_date\n            LEFT JOIN (\n                SELECT\n  \
+      \                  organisation_id,\n                    account_id,\n     \
+      \               processing_date,\n                    count() AS trade_count,\n\
+      \                    sum(coalesce(trade_value, 0)) AS total_trade_value\n  \
+      \              FROM silver_trades\n                GROUP BY organisation_id,\
+      \ account_id, processing_date\n            ) AS tr\n                ON a.organisation_id\
+      \ = tr.organisation_id\n                AND a.account_id = tr.account_id\n \
+      \               AND a.processing_date = tr.processing_date\n            LEFT\
+      \ JOIN (\n                SELECT\n                    organisation_id,\n   \
+      \                 account_id,\n                    processing_date,\n      \
+      \              count() AS fee_count,\n                    sum(coalesce(fee_amount,\
+      \ 0)) AS total_fees\n                FROM silver_fees\n                GROUP\
+      \ BY organisation_id, account_id, processing_date\n            ) AS f\n    \
+      \            ON a.organisation_id = f.organisation_id\n                AND a.account_id\
+      \ = f.account_id\n                AND a.processing_date = f.processing_date\n\
+      \        "
+  portfolio_holdings:
+    key: portfolio_id, security_id
+    sql: "\n            SELECT\n                h.organisation_id AS organisation_id,\n\
+      \                h.portfolio_id AS portfolio_id,\n                p.account_id\
+      \ AS account_id,\n                p.portfolio_name AS portfolio_name,\n    \
+      \            p.base_currency AS base_currency,\n                h.security_id\
+      \ AS security_id,\n                s.security_name AS security_name,\n     \
+      \           s.ticker AS ticker,\n                s.asset_type AS asset_type,\n\
+      \                s.currency AS security_currency,\n                h.processing_date\
+      \ AS processing_date,\n                count() AS holding_count,\n         \
+      \       sum(coalesce(h.quantity, 0)) AS total_quantity,\n                sum(coalesce(h.market_value,\
+      \ 0)) AS total_market_value\n            FROM silver_holdings AS h\n       \
+      \     INNER JOIN silver_portfolios AS p\n                ON h.organisation_id\
+      \ = p.organisation_id\n                AND h.portfolio_id = p.portfolio_id\n\
+      \                AND h.processing_date = p.processing_date\n            LEFT\
+      \ JOIN silver_securities AS s\n                ON h.organisation_id = s.organisation_id\n\
+      \                AND h.security_id = s.security_id\n                AND h.processing_date\
+      \ = s.processing_date\n            GROUP BY\n                h.organisation_id,\n\
+      \                h.portfolio_id,\n                p.account_id,\n          \
+      \      p.portfolio_name,\n                p.base_currency,\n               \
+      \ h.security_id,\n                s.security_name,\n                s.ticker,\n\
+      \                s.asset_type,\n                s.currency,\n              \
+      \  h.processing_date\n        "
+  statement_summary:
+    key: account_id
+    sql: "\n            SELECT\n                organisation_id,\n               \
+      \ account_id,\n                processing_date,\n                count() AS\
+      \ statement_count,\n\n                sum(coalesce(opening_balance, 0))\n  \
+      \                  AS total_opening_balance,\n\n                sum(coalesce(total_deposits,\
+      \ 0))\n                    AS summed_deposits,\n\n                sum(coalesce(total_withdrawals,\
+      \ 0))\n                    AS summed_withdrawals,\n\n                sum(coalesce(total_fees,\
+      \ 0))\n                    AS summed_statement_fees,\n\n                sum(coalesce(ending_balance,\
+      \ 0))\n                    AS total_ending_balance,\n\n                countIf(ending_balance\
+      \ < 0)\n                    AS overdraft_count,\n\n                countIf(\n\
+      \                    opening_balance IS NULL\n                    OR total_deposits\
+      \ IS NULL\n                    OR total_withdrawals IS NULL\n              \
+      \      OR total_fees IS NULL\n                    OR ending_balance IS NULL\n\
+      \                ) AS missing_financial_values,\n\n                countIf(\n\
+      \                    opening_balance IS NOT NULL\n                    AND total_deposits\
+      \ IS NOT NULL\n                    AND total_withdrawals IS NOT NULL\n     \
+      \               AND total_fees IS NOT NULL\n                    AND ending_balance\
+      \ IS NOT NULL\n                    AND abs(\n                        ending_balance\
+      \ -\n                        (\n                            opening_balance\n\
+      \                            + total_deposits\n                            -\
+      \ total_withdrawals\n                            - total_fees\n            \
+      \            )\n                    ) > 0.01\n                ) AS reconciliation_errors\n\
+      \n            FROM silver_statements\n            GROUP BY\n               \
+      \ organisation_id,\n                account_id,\n                processing_date\n\
+      \        "

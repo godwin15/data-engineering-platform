@@ -1,76 +1,56 @@
-import ast
 from pathlib import Path
 
 import yaml
 
+from scripts.pipeline_config import load_models
 from platform_health.sql_parser import extract_sql_lineage
-
-DATABASE = "wealth_management"
-
-
-def extract_dictionary(path, variable):
-    tree = ast.parse(Path(path).read_text())
-
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    if target.id == variable:
-                        return ast.literal_eval(node.value)
-
-    raise ValueError(f"{variable} not found in {path}")
 
 
 def main():
     models = []
 
-    silver = extract_dictionary(
-        "scripts/run_silver_pipeline.py",
-        "DATASETS",
-    )
+    silver = load_models("silver_python.yaml")
+    gold = load_models("gold.yaml")
 
-    for name in sorted(silver):
+    for name in silver:
         models.append({
-            "target": f"{DATABASE}.silver_{name}",
-            "sources": [f"{DATABASE}.bronze_{name}"],
-            "definition": "scripts/run_silver_pipeline.py",
+            "target": f"wealth_management.silver_{name}",
+            "sources": [
+                f"wealth_management.bronze_{name}"
+            ],
+            "definition": "configs/pipelines/silver_python.yaml",
         })
 
-    gold = extract_dictionary(
-        "scripts/run_gold_pipeline.py",
-        "GOLD_MODELS",
-    )
+    for name, config in gold.items():
+        target = f"wealth_management.gold_{name}"
 
-    for name, config in sorted(gold.items()):
-        target = f"{DATABASE}.gold_{name}"
-
-        sql = f"INSERT INTO {target} {config['sql']}"
-
-        edges = extract_sql_lineage(sql)
+        edges = extract_sql_lineage(
+            f"INSERT INTO {target} {config['sql']}"
+        )
 
         sources = sorted({
-            source for source, destination in edges
+            source
+            for source, destination in edges
             if destination == target
         })
 
         if not sources:
-            raise ValueError(f"No sources discovered for {target}")
+            raise ValueError(f"No dependencies found for {target}")
 
         models.append({
             "target": target,
             "sources": sources,
-            "definition": "scripts/run_gold_pipeline.py",
+            "definition": "configs/pipelines/gold.yaml",
         })
 
-    path = Path("configs/lineage/python_models.yaml")
-    path.parent.mkdir(parents=True, exist_ok=True)
+    output = Path("configs/lineage/python_models.yaml")
+    output.parent.mkdir(parents=True, exist_ok=True)
 
-    path.write_text(
+    output.write_text(
         yaml.safe_dump({"models": models}, sort_keys=False)
     )
 
-    print(f"Generated {len(models)} lineage models.")
-    print(path.read_text())
+    print(f"Generated lineage for {len(models)} models.")
 
 
 if __name__ == "__main__":

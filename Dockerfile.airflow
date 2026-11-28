@@ -2,4 +2,7 @@ FROM apache/airflow:2.10.5
 
 USER airflow
 
-RUN pip install --no-cache-dir clickhouse-connect
+RUN python -m pip install --no-cache-dir \
+    "apache-airflow==2.10.5" \
+    clickhouse-connect==1.11.0 \
+    sqlglot==30.34.0

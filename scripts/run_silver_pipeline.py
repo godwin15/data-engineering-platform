@@ -6,52 +6,9 @@ from datetime import datetime
 
 import clickhouse_connect
 
-DATASETS = {
-    "advisors": {
-        "key": "advisor_id",
-        "columns": {
-            "advisor_id": "String",
-            "advisor_name": "Nullable(String)",
-            "specialization": "Nullable(String)",
-            "status": "Nullable(String)",
-        },
-    },
-    "fees": {
-        "key": "fee_id",
-        "columns": {
-            "fee_id": "String",
-            "account_id": "String",
-            "fee_type": "Nullable(String)",
-            "fee_amount": "Nullable(Float64)",
-            "currency": "Nullable(String)",
-        },
-    },
-    "statements": {
-        "key": "statement_id",
-        "columns": {
-            "statement_id": "String",
-            "account_id": "String",
-            "opening_balance": "Nullable(Float64)",
-            "total_deposits": "Nullable(Float64)",
-            "total_withdrawals": "Nullable(Float64)",
-            "total_fees": "Nullable(Float64)",
-            "ending_balance": "Nullable(Float64)",
-            "currency": "Nullable(String)",
-        },
-    },
-    "trades": {
-        "key": "trade_id",
-        "columns": {
-            "trade_id": "String",
-            "account_id": "String",
-            "security_id": "String",
-            "trade_type": "Nullable(String)",
-            "quantity": "Nullable(Int64)",
-            "price": "Nullable(Float64)",
-            "trade_value": "Nullable(Float64)",
-        },
-    },
-}
+from pipeline_config import load_models
+
+DATASETS = load_models("silver_python.yaml")
 
 def main():
     client = clickhouse_connect.get_client(

@@ -3,19 +3,13 @@ import re
 from pathlib import Path
 
 import clickhouse_connect
+from pipeline_config import load_models
 
 
 DATABASE = "wealth_management"
-SQL_DIR = Path("/opt/airflow/sql/silver")
+ROOT = Path(__file__).resolve().parents[1]
 
-DATASETS = {
-    "clients": "client_id",
-    "accounts": "account_id",
-    "portfolios": "portfolio_id",
-    "securities": "security_id",
-    "holdings": "holding_id",
-    "transactions": "transaction_id",
-}
+DATASETS = load_models("silver_sql.yaml")
 
 
 def main():
@@ -27,12 +21,13 @@ def main():
         database=DATABASE,
     )
 
-    for dataset, key in DATASETS.items():
-        target = f"{DATABASE}.silver_{dataset}"
+    for dataset, model in DATASETS.items():
+        key = model["key"]
+        target = f"{DATABASE}.{model['target']}"
         stage = f"{DATABASE}.silver_{dataset}_staging"
         backup = f"{DATABASE}.silver_{dataset}_backup"
 
-        sql_path = SQL_DIR / f"load_silver_{dataset}.sql"
+        sql_path = ROOT / model["sql_file"]
         sql = sql_path.read_text()
 
         print(f"\nProcessing {dataset}...", flush=True)

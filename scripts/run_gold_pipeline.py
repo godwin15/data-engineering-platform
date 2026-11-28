@@ -3,167 +3,19 @@ import clickhouse_connect
 
 DATABASE = "wealth_management"
 
-GOLD_MODELS = {
-    "account_activity": {
-        "key": "account_id",
-        "sql": """
-            SELECT
-                a.organisation_id AS organisation_id,
-                a.account_id AS account_id,
-                a.client_id AS client_id,
-                a.currency AS account_currency,
-                a.processing_date AS processing_date,
-                coalesce(tx.transaction_count, 0) AS transaction_count,
-                coalesce(tx.transaction_amount, 0) AS transaction_amount,
-                coalesce(tr.trade_count, 0) AS trade_count,
-                coalesce(tr.total_trade_value, 0) AS total_trade_value,
-                coalesce(f.fee_count, 0) AS fee_count,
-                coalesce(f.total_fees, 0) AS total_fees
-            FROM silver_accounts AS a
-            LEFT JOIN (
-                SELECT
-                    organisation_id,
-                    account_id,
-                    processing_date,
-                    count() AS transaction_count,
-                    sum(coalesce(amount, 0)) AS transaction_amount
-                FROM silver_transactions
-                GROUP BY organisation_id, account_id, processing_date
-            ) AS tx
-                ON a.organisation_id = tx.organisation_id
-                AND a.account_id = tx.account_id
-                AND a.processing_date = tx.processing_date
-            LEFT JOIN (
-                SELECT
-                    organisation_id,
-                    account_id,
-                    processing_date,
-                    count() AS trade_count,
-                    sum(coalesce(trade_value, 0)) AS total_trade_value
-                FROM silver_trades
-                GROUP BY organisation_id, account_id, processing_date
-            ) AS tr
-                ON a.organisation_id = tr.organisation_id
-                AND a.account_id = tr.account_id
-                AND a.processing_date = tr.processing_date
-            LEFT JOIN (
-                SELECT
-                    organisation_id,
-                    account_id,
-                    processing_date,
-                    count() AS fee_count,
-                    sum(coalesce(fee_amount, 0)) AS total_fees
-                FROM silver_fees
-                GROUP BY organisation_id, account_id, processing_date
-            ) AS f
-                ON a.organisation_id = f.organisation_id
-                AND a.account_id = f.account_id
-                AND a.processing_date = f.processing_date
-        """
-    },
+from pipeline_config import load_models
 
-    "portfolio_holdings": {
-        "key": "portfolio_id, security_id",
-        "sql": """
-            SELECT
-                h.organisation_id AS organisation_id,
-                h.portfolio_id AS portfolio_id,
-                p.account_id AS account_id,
-                p.portfolio_name AS portfolio_name,
-                p.base_currency AS base_currency,
-                h.security_id AS security_id,
-                s.security_name AS security_name,
-                s.ticker AS ticker,
-                s.asset_type AS asset_type,
-                s.currency AS security_currency,
-                h.processing_date AS processing_date,
-                count() AS holding_count,
-                sum(coalesce(h.quantity, 0)) AS total_quantity,
-                sum(coalesce(h.market_value, 0)) AS total_market_value
-            FROM silver_holdings AS h
-            INNER JOIN silver_portfolios AS p
-                ON h.organisation_id = p.organisation_id
-                AND h.portfolio_id = p.portfolio_id
-                AND h.processing_date = p.processing_date
-            LEFT JOIN silver_securities AS s
-                ON h.organisation_id = s.organisation_id
-                AND h.security_id = s.security_id
-                AND h.processing_date = s.processing_date
-            GROUP BY
-                h.organisation_id,
-                h.portfolio_id,
-                p.account_id,
-                p.portfolio_name,
-                p.base_currency,
-                h.security_id,
-                s.security_name,
-                s.ticker,
-                s.asset_type,
-                s.currency,
-                h.processing_date
-        """
-    },
+from gold_tenant_guard import validate_gold_sql
 
-    "statement_summary": {
-        "key": "account_id",
-        "sql": """
-            SELECT
-                organisation_id,
-                account_id,
-                processing_date,
-                count() AS statement_count,
+GOLD_MODELS = load_models("gold.yaml")
 
-                sum(coalesce(opening_balance, 0))
-                    AS total_opening_balance,
-
-                sum(coalesce(total_deposits, 0))
-                    AS summed_deposits,
-
-                sum(coalesce(total_withdrawals, 0))
-                    AS summed_withdrawals,
-
-                sum(coalesce(total_fees, 0))
-                    AS summed_statement_fees,
-
-                sum(coalesce(ending_balance, 0))
-                    AS total_ending_balance,
-
-                countIf(ending_balance < 0)
-                    AS overdraft_count,
-
-                countIf(
-                    opening_balance IS NULL
-                    OR total_deposits IS NULL
-                    OR total_withdrawals IS NULL
-                    OR total_fees IS NULL
-                    OR ending_balance IS NULL
-                ) AS missing_financial_values,
-
-                countIf(
-                    opening_balance IS NOT NULL
-                    AND total_deposits IS NOT NULL
-                    AND total_withdrawals IS NOT NULL
-                    AND total_fees IS NOT NULL
-                    AND ending_balance IS NOT NULL
-                    AND abs(
-                        ending_balance -
-                        (
-                            opening_balance
-                            + total_deposits
-                            - total_withdrawals
-                            - total_fees
-                        )
-                    ) > 0.01
-                ) AS reconciliation_errors
-
-            FROM silver_statements
-            GROUP BY
-                organisation_id,
-                account_id,
-                processing_date
-        """
-    }
-}
+for model_name, model_config in GOLD_MODELS.items():
+    try:
+        validate_gold_sql(model_config["sql"])
+    except ValueError as exc:
+        raise ValueError(
+            f"Unsafe Gold model {model_name}: {exc}"
+        ) from exc
 
 
 def main():
